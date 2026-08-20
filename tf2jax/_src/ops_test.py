@@ -1184,6 +1184,36 @@ class OpsTest(test_util.TestCase):
         np.asarray(tf_out[2]), np.asarray(jax_out[2]), atol=1e-5
     )
 
+  def test_identity_n_without_custom_gradient(self):
+    """IdentityN without `_gradient_op_type`, e.g. from `tf.identity_n`.
+
+    Such an op is not a custom gradient marker and should simply forward its
+    inputs rather than crashing with a KeyError.
+    """
+    proto = tf.compat.v1.NodeDef()
+    proto.op = "IdentityN"
+    proto.name = "test_identity_n"
+    proto.attr["T"].type = tf.float32.as_datatype_enum
+
+    parsed_fn = ops.get_parser("IdentityN")(proto)
+    x = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+    y = np.array([4.0, 5.0, 6.0], dtype=np.float32)
+    outputs = parsed_fn(jax.numpy.asarray(x), jax.numpy.asarray(y))
+    self.assertLen(outputs, 2)
+    self.assertAllClose(np.asarray(outputs[0]), x)
+    self.assertAllClose(np.asarray(outputs[1]), y)
+
+  def test_identity_n_with_custom_gradient(self):
+    """IdentityN with `_gradient_op_type` is parsed as a custom gradient."""
+    proto = tf.compat.v1.NodeDef()
+    proto.op = "IdentityN"
+    proto.name = "test_identity_n"
+    proto.attr["T"].type = tf.float32.as_datatype_enum
+    proto.attr["_gradient_op_type"].s = b"CustomGradient-1"
+
+    parsed_fn = ops.get_parser("IdentityN")(proto)
+    self.assertIsInstance(parsed_fn, ops._IdentityN)
+
   @chex.variants(with_jit=True, without_jit=True)
   @parameterized.named_parameters(
       chex.params_product(

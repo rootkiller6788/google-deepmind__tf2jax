@@ -738,7 +738,7 @@ class _Subgraph(NamedTuple):
 
 def _contains_custom_gradient(node: tf.compat.v1.NodeDef) -> bool:
   # IdentityN are used to override gradients.
-  return node.op == "IdentityN"
+  return node.op == "IdentityN" and "_gradient_op_type" in node.attr
 
 
 def _get_consumers_and_producers_fns(nodes):

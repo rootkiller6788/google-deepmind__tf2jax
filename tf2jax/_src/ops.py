@@ -1094,9 +1094,16 @@ def _identity_n(proto):
   """Parse a IdentityN Op."""
   _check_attrs(proto, {"T"})
 
-  gradient_op_type = str(proto.attr["_gradient_op_type"].s, "utf-8")
-  if gradient_op_type:
-    logging.info("Found custom gradient %s", gradient_op_type)
+  gradient_op_type = str(
+      proto.attr["_gradient_op_type"].s, "utf-8"
+  ) if "_gradient_op_type" in proto.attr else ""
+
+  if not gradient_op_type:
+    # IdentityN is also generated without a custom gradient, e.g. by
+    # tf.identity_n. In that case it simply forwards its inputs.
+    return lambda *args: args
+
+  logging.info("Found custom gradient %s", gradient_op_type)
 
   return _IdentityN(
       {},
